@@ -87,7 +87,7 @@ export const signup = async (req,res) => {
 			sexo: user.sexo,
 			birthDate: user.birthDate,
 			isVerified: user.isVerified,
-			createdAt: user.createdAt
+			createdAt: user.createdAt,
 		}
 	});
 
@@ -196,7 +196,8 @@ export const login = async (req,res) => {
                 birthDate: user.birthDate,
                 isVerified: user.isVerified,
                 createdAt: user.createdAt,
-				nationality : user.nationality
+				nationality : user.nationality,
+				avatar: user.avatar
             }
         });
 	} catch (error) {
