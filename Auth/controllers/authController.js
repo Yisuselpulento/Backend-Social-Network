@@ -8,6 +8,8 @@ import { isValidDate } from "../utils/validateDate.js"
 const LOCK_TIME = 15 * 60 * 1000; 
 const MAX_ATTEMPTS = 5;
 
+const isValidEmail = (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email);
+
 export const signup = async (req,res) => {
 
      const {email,password, sexo, birthDate, username } = req.body
@@ -21,9 +23,9 @@ export const signup = async (req,res) => {
             return res.status(400).json({ success: false, message: "Fecha de nacimiento inválida." });
         }
 
-		if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+		if (!isValidEmail(email)) {
 			return res.status(400).json({ success: false, message: "Formato de email inválido." });
-		}
+		 }
 
 		if (username.length < 3 || username.length > 10) {
             return res.status(400).json({
@@ -58,7 +60,7 @@ export const signup = async (req,res) => {
         }
 ;
         const hashedPassword = await bcrypt.hash(password,10)
-        const verificationToken = Math.floor(100000 + Math.random() * 900000).toString()
+		const verificationToken = (crypto.randomBytes(3).readUIntBE(0, 3) % 900000 + 100000).toString();
 
 
         const user = new User({
@@ -73,16 +75,22 @@ export const signup = async (req,res) => {
 
           await user.save()  
 
-        await sendVerificationEmail(user.email, user.username, verificationToken)  
+       /*  await sendVerificationEmail(user.email, user.username, verificationToken)   */
 
-        res.status(201).json({
-            success: true,
-            message: "Usuario creado exitosamente",
-            user: {
-                ...user._doc,
-                password: undefined
-            } 
-        })
+	   res.status(201).json({
+		success: true,
+		message: "Usuario creado exitosamente",
+		user: {
+			_id: user._id,
+			email: user.email,
+			username: user.username,
+			sexo: user.sexo,
+			birthDate: user.birthDate,
+			isVerified: user.isVerified,
+			createdAt: user.createdAt
+		}
+	});
+
     } catch (error) {
         res.status(500).json({success:false, message: error.message})
     } 
@@ -106,20 +114,21 @@ export const verifyEmail = async (req,res)=>{
 			return res.status(401).json({ success: false, message: "Token invalido a expirado." });
 		}
 
+		if (user.isVerified) {
+            return res.status(400).json({ success: false, message: "El email ya ha sido verificado." });
+        }
+
 		user.isVerified = true;
 		user.verificationToken = undefined;
 		user.verificationTokenExpiresAt = undefined;
 		await user.save();
 
-		 await sendWelcomeEmail(user.email, user.username);
+		/*  await sendWelcomeEmail(user.email, user.username); */
 
 		res.status(200).json({
 			success: true,
 			message: "Email verificado exitosamente",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: { isVerified: user.isVerified },
 		});
 	} catch (error) {
 		console.log("error en verificar Email ", error);
@@ -136,12 +145,9 @@ export const login = async (req,res) => {
 			return res.status(400).json({ success: false, message: "Por favor, ingrese correo y contraseña" });
 		  }
 
-		  if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Formato de email inválido." 
-            });
-        }
+	    if (!isValidEmail(email)) {
+			return res.status(400).json({ success: false, message: "Formato de email inválido." });
+		 }
 
 		const user = await User.findOne({ email });
 
@@ -165,7 +171,11 @@ export const login = async (req,res) => {
             }
             await user.save();
 
-            return res.status(400).json({ success: false, message: "Usuario o password incorrecto" });
+			const attemptsLeft = MAX_ATTEMPTS - user.loginAttempts;
+
+            return res.status(400).json({ 
+				success: false,
+				message: `Usuario o password incorrecto. Intentos restantes: ${attemptsLeft}` });
         }
 
     
@@ -175,14 +185,20 @@ export const login = async (req,res) => {
 
 		generateTokenAndSetCookie(res, user)
 
-		res.status(200).json({
-			success: true,
-			message: "Inicio session exitosa",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
-		});
+		 res.status(200).json({
+            success: true,
+            message: "Inicio de sesión exitoso",
+            user: {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                sexo: user.sexo,
+                birthDate: user.birthDate,
+                isVerified: user.isVerified,
+                createdAt: user.createdAt,
+				nationality : user.nationality
+            }
+        });
 	} catch (error) {
 		console.log("Error al iniciar session ", error);
 		res.status(500).json({ success: false, message: error.message });
@@ -211,9 +227,9 @@ export const logout = async (req, res) => {
 export const forgotPassword = async (req, res) => {
 	const { email } = req.body;
 	try {
-		if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+		if (!isValidEmail(email)) {
 			return res.status(400).json({ success: false, message: "Formato de email inválido." });
-		}
+		 }
 
 		const user = await User.findOne({ email });
 
@@ -229,7 +245,7 @@ export const forgotPassword = async (req, res) => {
 
 		await user.save();
 
-		await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/update-password/${resetToken}`); 
+	/* 	await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/update-password/${resetToken}`); */ 
 
 		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
@@ -272,7 +288,7 @@ export const resetPassword = async (req, res) => {
 		user.resetPasswordExpiresAt = undefined;
 		await user.save();
 
-		await sendResetSuccessEmail(user.email); 
+		/* await sendResetSuccessEmail(user.email);  */
 
 		res.status(200).json({ success: true, message: "Password reset exitosamente" });
 	} catch (error) {
@@ -283,7 +299,7 @@ export const resetPassword = async (req, res) => {
 
 export const checkAuth = async (req, res) => {
 	try {
-		const user = await User.findById(req.userId).select("-password");
+		const user = await User.findById(req.userId).select("-password -verificationToken -verificationTokenExpiresAt -loginAttempts -lastEditAt -friendRequests -friends -posts -notifications -chatRooms -__v");
 		if (!user) {
 			return res.status(404).json({ success: false, message: "User not found" });
 		}
@@ -319,7 +335,7 @@ export const resendVerificationToken = async (req, res) => {
         await user.save();
 
        
-        await sendVerificationEmail(user.email, user.username, verificationToken);
+      /*   await sendVerificationEmail(user.email, user.username, verificationToken); */
  
         res.status(200).json({
             success: true,

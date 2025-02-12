@@ -1,6 +1,6 @@
 import { User } from "../../models/user.model.js";
 
-const EDIT_INTERVAL = 24 * 60 * 60 * 1000;
+const EDIT_INTERVAL = 24 * 60 * 60 * 1000; 
 
 export const editUser = async (req, res) => {
     const { username, email, nationality } = req.body;
@@ -13,54 +13,69 @@ export const editUser = async (req, res) => {
                 message: "Usuario no encontrado",
             });
         }
-        
+
         const now = new Date();
-        const timeSinceLastEdit = now - currentUser.lastEditAt;
+
+      
+        const lastEditAt = currentUser.lastEditAt instanceof Date ? currentUser.lastEditAt : new Date(0);
+        const timeSinceLastEdit = now - lastEditAt;
+
         if (timeSinceLastEdit < EDIT_INTERVAL) {
-            const remainingTime = ((EDIT_INTERVAL - timeSinceLastEdit) / (60 * 60 * 1000)).toFixed(2); 
+            const remainingTime = ((EDIT_INTERVAL - timeSinceLastEdit) / (60 * 60 * 1000)).toFixed(2);
             return res.status(400).json({
                 success: false,
                 message: `Debes esperar ${remainingTime} horas para editar tu perfil nuevamente.`,
             });
-        }
+        } 
 
+         const isSameData =
+            (username === undefined || username === currentUser.username) &&
+            (email === undefined || email === currentUser.email) &&
+            (nationality === undefined || nationality === currentUser.nationality);
+
+        if (isSameData) {
+            return res.status(400).json({
+                success: false,
+                message: "No es posible actualizar el usuario con los mismos datos.",
+            });
+        }
 
         if (username && (username.length < 3 || username.length > 10)) {
             return res.status(400).json({
                 success: false,
-                message: "El nombre de usuario debe tener entre 3 y 10 caracteres",
+                message: "El nombre de usuario debe tener entre 3 y 10 caracteres.",
             });
         }
 
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).json({
                 success: false,
-                message: "El email no es válido",
+                message: "El email no es válido.",
             });
         }
 
-        if (email) {
+     
+        if (email && email !== currentUser.email) {
             const emailExists = await User.findOne({ email });
-            if (emailExists && emailExists._id.toString() !== req.userId) {
+            if (emailExists) {
                 return res.status(400).json({
                     success: false,
-                    message: "El email ya está en uso por otro usuario",
+                    message: "El email ya está en uso por otro usuario.",
                 });
             }
         }
 
-        const updateData = {};
+       
+        const updateData = { lastEditAt: now };
         if (username) updateData.username = username;
         if (email) updateData.email = email;
         if (nationality) updateData.nationality = nationality;
-
-        updateData.lastEditAt = now;
 
         const updatedUser = await User.findByIdAndUpdate(
             req.userId,
             updateData,
             { new: true, runValidators: true }
-        );
+        ).select("-password -verificationToken -verificationTokenExpiresAt -loginAttempts -lastEditAt -friendRequests -friends -posts -notifications -chatRooms -__v");
 
         if (!updatedUser) {
             return res.status(404).json({
@@ -74,7 +89,7 @@ export const editUser = async (req, res) => {
             message: "Usuario actualizado exitosamente",
             user: {
                 ...updatedUser._doc,
-                password: undefined
+                password: undefined, 
             },
         });
     } catch (error) {

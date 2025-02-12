@@ -25,7 +25,8 @@ const userSchema = new mongoose.Schema({
     },
     nationality: {
         type: String,
-        trim: true
+        trim: true,
+         default: 'Desconocido'
     },
     birthDate: {
         type: Date,
@@ -39,8 +40,8 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false, 
     },
-    avatar: { type: String }, 
-    bio: { type: String },
+    avatar: { type: String, default: 'https://w7.pngwing.com/pngs/177/551/png-transparent-user-interface-design-computer-icons-default-stephen-salazar-graphy-user-interface-design-computer-wallpaper-sphere.png' }, 
+    bio: { type: String, default: 'Este usuario no ha agregado una biografía.' },
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
     friendRequests: [{ 
