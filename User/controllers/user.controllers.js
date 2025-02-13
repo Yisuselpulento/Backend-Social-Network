@@ -100,3 +100,55 @@ export const editUser = async (req, res) => {
         });
     }
 };
+
+export const searchUsers = async (req, res) => {
+    const { username } = req.query;
+
+    if (!username || username.trim() === "") {
+        return res.status(400).json({
+            success: false,
+            message: "El nombre de usuario es requerido",
+        });
+    }
+
+    try {
+        const users = await User.find({
+            username: { $regex: new RegExp(username, "i") },
+            _id: { $ne: req.userId }
+        }).select("username avatar");
+
+        res.status(200).json({ success: true, users });
+    } catch (error) {
+        console.error("Error en searchUsers:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error del servidor",
+        });
+    }
+};
+
+export const getUserByUsername = async (req, res) => {
+    const { username } = req.params;
+    
+    try {
+        const user = await User.findOne({ username }).select("-password -verificationToken -__v");
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "Usuario no encontrado",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user,
+        });
+    } catch (error) {
+        console.error("Error en getUserByUsername:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error del servidor",
+        });
+    }
+};
