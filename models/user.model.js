@@ -42,18 +42,8 @@ const userSchema = new mongoose.Schema({
     },
     avatar: { type: String, default: 'https://w7.pngwing.com/pngs/177/551/png-transparent-user-interface-design-computer-icons-default-stephen-salazar-graphy-user-interface-design-computer-wallpaper-sphere.png' }, 
     bio: { type: String, default: 'Este usuario no ha agregado una biografía.' },
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-
-    friendRequests: [{ 
-        sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        status: { 
-            type: String, 
-            enum: ['pending', 'accepted', 'declined'], 
-            default: 'pending' 
-        },
-        createdAt: { type: Date, default: Date.now }
-    }], 
-
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
     posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
     notifications: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Notification' }], 
     chatRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ChatRoom' }],

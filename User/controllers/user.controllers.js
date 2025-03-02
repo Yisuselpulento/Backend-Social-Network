@@ -1,4 +1,5 @@
 import { User } from "../../models/user.model.js";
+import { Notification } from "../../models/notification.model.js";
 
 const EDIT_INTERVAL = 24 * 60 * 60 * 1000; 
 
@@ -150,5 +151,84 @@ export const getUserByUsername = async (req, res) => {
             success: false,
             message: "Error del servidor",
         });
+    }
+};
+
+export const toggleFollow = async (req, res) => {
+    const { userIdToFollow } = req.body;
+    
+    if (!userIdToFollow) {
+        return res.status(400).json({
+            success: false,
+            message: "El ID del usuario a seguir es requerido."
+        });
+    }
+
+    try {
+        const currentUser = await User.findById(req.userId);
+        const userToFollow = await User.findById(userIdToFollow);
+
+        if (!currentUser || !userToFollow) {
+            return res.status(404).json({
+                success: false,
+                message: "Usuario no encontrado."
+            });
+        }
+
+        const isFollowing = currentUser.following.includes(userIdToFollow);
+
+        if (isFollowing) {
+            currentUser.following = currentUser.following.filter(id => id.toString() !== userIdToFollow);
+            userToFollow.followers = userToFollow.followers.filter(id => id.toString() !== req.userId);
+        } else {
+            currentUser.following.push(userIdToFollow);
+            userToFollow.followers.push(req.userId);
+
+            const notification = new Notification({
+                user: userIdToFollow,
+                sender: req.userId,
+                type: "follow",
+                message: `${currentUser.username} te ha empezado a seguir.`,
+            });
+            await notification.save();
+            userToFollow.notifications.push(notification._id);
+        }
+
+        await currentUser.save();
+        await userToFollow.save();
+
+        res.status(200).json({
+            success: true,
+            message: isFollowing ? "Dejaste de seguir al usuario." : "Ahora sigues a este usuario.",
+            following: currentUser.following
+        });
+    } catch (error) {
+        console.error("Error en toggleFollow:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error del servidor."
+        });
+    }
+};
+
+export const getUserNotifications = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).populate({
+            path: "notifications",
+            populate: { path: "sender", select: "username avatar" }, 
+            options: { sort: { createdAt: -1 } }, 
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            notifications: user.notifications,
+        });
+    } catch (error) {
+        console.error("Error obteniendo notificaciones:", error);
+        return res.status(500).json({ success: false, message: "Error del servidor." });
     }
 };
