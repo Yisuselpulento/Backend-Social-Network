@@ -24,10 +24,10 @@ app.use("/api/user", userRoutes)
 app.use("/api/posts", postsRoutes)
 app.use("/api/admin", adminRoutes)
 
-app.listen(PORT,()=> {
-    connectDB()
-    console.log(`Servidor corriendo en el puerto ${PORT}`)
-})
-
-
-
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Servidor corriendo en el puerto ${PORT}`);
+    });
+}).catch(err => {
+    console.error("Error al conectar con la base de datos:", err);
+});
