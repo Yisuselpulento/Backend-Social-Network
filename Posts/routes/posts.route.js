@@ -7,7 +7,7 @@ import { createPost, deletePost, getAllPosts, getUserPosts, likePost } from "../
 const router = express.Router();
 
 router.get("/getall",verifyAuth, getAllPosts);
-router.post("/create", verifyAuth,  createPost)
+router.post("/create", verifyAuth, upload,  createPost)
 router.patch("/togglelike/:id", verifyAuth, likePost)
 router.delete("/delete/:id", verifyAuth, deletePost)
 router.get("/posts/user/:userId",verifyAuth, getUserPosts);

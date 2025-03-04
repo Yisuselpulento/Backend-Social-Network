@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 const postSchema = new mongoose.Schema({
     text: {
         type: String,
-        required: true,
         trim: true,
-        minlength: 1,
+        default: "",
         maxlength: 500
     },
     user: {
